@@ -2,13 +2,13 @@
 
 Self-contained iOS Swift Package for VPN — **OpenVPN**, **WireGuard**, **IKEv2**, and **IPSec**. No external SPM dependencies; Partout runtime is vendored inside this repo.
 
-> **Package name:** `SwiftVPNKit` · **Import modules:** `VPNKit`, `VPNKitTunnel`, `VPNKitPersonal`
+> **Import:** `SwiftVPNKit` (app) · `SwiftVPNKitTunnel` (extension)
 
 ## Package size
 
 | Component | Size |
 |-----------|------|
-| Swift sources (Partout + VPNKit) | ~1 MB |
+| Swift sources (Partout + SwiftVPNKit) | ~1 MB |
 | `PartoutNative.xcframework` (unpacked) | ~88 MB |
 | License / metadata | ~36 KB |
 | **Total repo on disk** | **~89 MB** |
@@ -40,22 +40,51 @@ The xcframework also includes macOS and tvOS slices for completeness. Only the i
 
 ### 1. Add the package
 
-**Xcode:** File → Add Package Dependencies → enter your repo URL.
+**Xcode:** File → Add Package Dependencies → paste:
+
+```
+https://github.com/wajahatdev9d/swiftvpnkit.git
+```
+
+Choose version **1.0.0** or **Up to Next Major** from `1.0.0`.
 
 **Package.swift:**
 
 ```swift
-dependencies: [
-    .package(url: "https://github.com/wajahatdev9d/swiftvpnkit.git", from: "1.0.0")
-]
+// swift-tools-version: 6.1
+import PackageDescription
+
+let package = Package(
+    name: "MyApp",
+    platforms: [.iOS(.v16)],
+    dependencies: [
+        .package(url: "https://github.com/wajahatdev9d/swiftvpnkit.git", from: "1.0.0")
+    ],
+    targets: [
+        .target(
+            name: "MyApp",
+            dependencies: [
+                .product(name: "SwiftVPNKit", package: "swiftvpnkit")
+            ]
+        ),
+        .target(
+            name: "MyTunnelExtension",
+            dependencies: [
+                .product(name: "SwiftVPNKitTunnel", package: "swiftvpnkit")
+            ]
+        )
+    ]
+)
 ```
+
+> SPM identity from URL: **`swiftvpnkit`**. Single app import: **`import SwiftVPNKit`**
 
 ### 2. Link products to targets
 
-| Target | Products |
-|--------|----------|
-| Main app | `VPNKit`, `VPNKitPersonal` |
-| Packet Tunnel extension | `VPNKitTunnel` |
+| Target | Product |
+|--------|---------|
+| Main app | `SwiftVPNKit` |
+| Packet Tunnel extension | `SwiftVPNKitTunnel` |
 
 ---
 
@@ -63,9 +92,8 @@ dependencies: [
 
 | Product | Use for |
 |---------|---------|
-| `VPNKit` | OpenVPN / WireGuard profile building, tunnel install, status |
-| `VPNKitTunnel` | Subclass in your Network Extension |
-| `VPNKitPersonal` | IKEv2 / IPSec via `NEVPNManager` (no extension needed) |
+| `SwiftVPNKit` | OpenVPN, WireGuard, IKEv2, IPSec — one import for the whole app |
+| `SwiftVPNKitTunnel` | Subclass in your Network Extension |
 
 ---
 
@@ -108,7 +136,7 @@ Use **one extension per protocol** if you support both OpenVPN and WireGuard (ea
 ### 1. Packet Tunnel extension
 
 ```swift
-import VPNKitTunnel
+import SwiftVPNKitTunnel
 
 final class TunnelProvider: VPNPacketTunnelProvider {}
 ```
@@ -118,7 +146,7 @@ Set the extension’s principal class to `TunnelProvider`.
 ### 2. Configure factory
 
 ```swift
-import VPNKit
+import SwiftVPNKit
 
 let config = VPNKitConfig(
     tunnelBundleIdentifier: "com.yourcompany.vpn.openvpn",
@@ -189,7 +217,7 @@ try await observer.disconnect(profile.id)
 Uses Apple’s built-in `NEVPNManager` — **no packet tunnel extension** required.
 
 ```swift
-import VPNKitPersonal
+import SwiftVPNKit
 
 // Optional: route logs to your logger
 VPNKitLogger.handler = { level, message in
@@ -307,6 +335,6 @@ See `Vendor/Partout-LICENSE-GPL-3.0.txt`. If you distribute apps using this pack
 
 ## License
 
-VPNKit wrapper code: your project license.
+SwiftVPNKit wrapper code: your project license.
 
 Vendored Partout components: **GPL-3.0** — see `Vendor/Partout-LICENSE-GPL-3.0.txt`.

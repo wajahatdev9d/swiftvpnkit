@@ -7,9 +7,8 @@ let package = Package(
         .iOS(.v16)
     ],
     products: [
-        .library(name: "VPNKit", targets: ["VPNKit"]),
-        .library(name: "VPNKitTunnel", targets: ["VPNKitTunnel"]),
-        .library(name: "VPNKitPersonal", targets: ["VPNKitPersonal"])
+        .library(name: "SwiftVPNKit", targets: ["SwiftVPNKit"]),
+        .library(name: "SwiftVPNKitTunnel", targets: ["SwiftVPNKitTunnel"])
     ],
     dependencies: [],
     targets: [
@@ -42,6 +41,14 @@ let package = Package(
         .target(
             name: "VPNKitPersonal",
             dependencies: []
+        ),
+        .target(
+            name: "SwiftVPNKit",
+            dependencies: ["VPNKit", "VPNKitPersonal"]
+        ),
+        .target(
+            name: "SwiftVPNKitTunnel",
+            dependencies: ["VPNKitTunnel"]
         )
     ],
     swiftLanguageModes: [.v6]
