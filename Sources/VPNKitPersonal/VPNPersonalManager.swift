@@ -52,11 +52,11 @@ public final class VPNPersonalManager: @unchecked Sendable {
         lastReportedStatus = nil
     }
 
-    public func connect(completion: @escaping (_ success: Bool) -> Void) {
+    public func connect(completion: @escaping @Sendable (_ success: Bool) -> Void) {
         connect(attempt: 1, completion: completion)
     }
 
-    public func getStatus(_ completion: @escaping (NEVPNStatus?) -> Void) {
+    public func getStatus(_ completion: @escaping @Sendable (NEVPNStatus?) -> Void) {
         if vpnManager.protocolConfiguration == nil {
             vpnManager.loadFromPreferences { _ in
                 completion(self.vpnManager.connection.status)
@@ -70,7 +70,7 @@ public final class VPNPersonalManager: @unchecked Sendable {
         applyStatus(status)
     }
 
-    private func connect(attempt: Int, completion: @escaping (_ success: Bool) -> Void) {
+    private func connect(attempt: Int, completion: @escaping @Sendable (_ success: Bool) -> Void) {
         if let validationError = validateBeforeConnect() {
             VPNKitLogger.error("VPNPersonal preflight failed: \(validationError)")
             completion(false)
@@ -116,7 +116,7 @@ public final class VPNPersonalManager: @unchecked Sendable {
         }
     }
 
-    private func reloadAndStartTunnel(attempt: Int, completion: @escaping (_ success: Bool) -> Void) {
+    private func reloadAndStartTunnel(attempt: Int, completion: @escaping @Sendable (_ success: Bool) -> Void) {
         vpnManager.loadFromPreferences { [weak self] error in
             guard let self else {
                 completion(false)
@@ -131,7 +131,7 @@ public final class VPNPersonalManager: @unchecked Sendable {
         }
     }
 
-    private func startVPNTunnel(attempt: Int, completion: @escaping (_ success: Bool) -> Void) {
+    private func startVPNTunnel(attempt: Int, completion: @escaping @Sendable (_ success: Bool) -> Void) {
         guard vpnManager.protocolConfiguration != nil else {
             VPNKitLogger.error("VPNPersonal start blocked — protocolConfiguration nil attempt=\(attempt)")
             retryConnectIfNeeded(attempt: attempt, completion: completion)
@@ -151,7 +151,7 @@ public final class VPNPersonalManager: @unchecked Sendable {
         }
     }
 
-    private func retryConnectIfNeeded(attempt: Int, completion: @escaping (_ success: Bool) -> Void) {
+    private func retryConnectIfNeeded(attempt: Int, completion: @escaping @Sendable (_ success: Bool) -> Void) {
         guard attempt < 3 else {
             completion(false)
             return
