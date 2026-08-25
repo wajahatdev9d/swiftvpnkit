@@ -1,0 +1,171 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Davide De Rosa
+ *
+ * SPDX-License-Identifier: GPL-3.0
+ */
+
+#pragma once
+#include "conditionals.h"
+
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#pragma clang assume_nonnull begin
+
+/* Logging counterpart of Swift pp_log. */
+
+typedef enum {
+    PPLogLevelFault,
+    PPLogLevelError,
+    PPLogLevelNotice,
+    PPLogLevelInfo,
+    PPLogLevelDebug
+} pp_log_level;
+
+/* This callback forwards to the logger from partout_init(). */
+// extern bool partout_log_enabled(void);
+extern void partout_log(pp_log_level level, const char *message);
+
+static inline
+void pp_clog(pp_log_level level, const char *message) {
+    partout_log(level, message);
+}
+
+void pp_clog_v(pp_log_level level, const char *fmt, ...);
+
+/* Use inline rather than #define to make available to Swift. */
+
+static inline
+void pp_assert(bool condition) {
+    assert(condition);
+    (void)condition;
+}
+
+static inline
+void *pp_alloc(size_t size) {
+    void *memory = calloc(1, size);
+    if (!memory) {
+        pp_clog(PPLogLevelFault, "pp_alloc: malloc() call failed");
+        abort();
+    }
+    return memory;
+}
+
+static inline
+void pp_free(void *_Nullable ptr) {
+    if (!ptr) return;
+    free(ptr);
+}
+
+static inline
+void pp_zero(void *ptr, size_t count) {
+#ifdef bzero
+    bzero(ptr, count);
+#else
+    memset(ptr, 0, count);
+#endif
+}
+
+char *pp_dup(const char *str);
+FILE *_Nullable pp_fopen(const char *filename, const char *mode);
+
+/* Read a whole file into a string. */
+char *_Nullable pp_file_read(const char *rel_path, const char *_Nullable parent);
+
+/* Create a directory and any missing parents. */
+bool pp_file_create_directory(const char *path);
+
+/* Return whether a path identifies a directory. */
+bool pp_file_is_directory(const char *path);
+
+/* Return seconds since the Unix epoch, or zero if unavailable. */
+uint32_t pp_time_unix_seconds(void);
+
+/* Report a fatal Zig error without pulling in Zig's default I/O backend. */
+void pp_panic(const char *message);
+
+#pragma clang assume_nonnull end
+
+/* Syscalls. */
+
+extern const int PPIOErrorWouldBlock;
+extern const int PPIOErrorNoBufs;
+extern const int PPIOErrorNoSpace;
+
+#if PARTOUT_WINDOWS
+
+#pragma clang assume_nonnull begin
+
+/* ABI-compatible with the Windows SDK HANDLE and SOCKET definitions. */
+typedef void *_Nonnull pp_fd;
+typedef uintptr_t pp_socket_fd;
+
+static inline bool pp_fd_is_valid(pp_fd fd) {
+    return (intptr_t)fd != -1;
+}
+
+int pp_io_last_error_binding(void);
+#pragma clang assume_nonnull end
+
+#else
+
+#pragma clang assume_nonnull begin
+
+typedef int pp_fd;
+typedef pp_fd pp_socket_fd;
+
+static inline bool pp_fd_is_valid(pp_fd fd) {
+    return fd != -1;
+}
+
+int pp_fd_set_nonblocking(pp_fd fd, int *_Nullable original_flags);
+int pp_fd_restore_blocking(pp_fd fd, int original_flags);
+int pp_io_last_error_binding(void);
+
+#pragma clang assume_nonnull end
+
+#endif
+
+/* Android only. */
+
+#if PARTOUT_ANDROID
+#include <android/multinetwork.h>
+#include <jni.h>
+
+#pragma clang assume_nonnull begin
+
+extern _Nullable JavaVM *_Nullable jvm;
+_Nullable JNIEnv *_Nullable pp_jni_attach_thread(bool *did_attach);
+void *_Nullable pp_jni_new_global_ref(void *_Nullable ref);
+void pp_jni_delete_global_ref(void *_Nullable ref);
+
+#define PP_JNI_ATTACH_OR_RETURN(env_name, return_value) \
+    bool env_name##_did_attach; \
+    JNIEnv *env_name = pp_jni_attach_thread(&env_name##_did_attach); \
+    if (!(env_name)) return return_value
+
+#define PP_JNI_ATTACH_OR_RETURN_VOID(env_name) \
+    bool env_name##_did_attach; \
+    JNIEnv *env_name = pp_jni_attach_thread(&env_name##_did_attach); \
+    if (!(env_name)) return
+
+#define PP_JNI_ATTACH_OR_COMPLETE(env_name, completion, ctx) \
+    bool env_name##_did_attach; \
+    JNIEnv *env_name = pp_jni_attach_thread(&env_name##_did_attach); \
+    if (!(env_name)) { \
+        if (completion) completion(ctx, -1); \
+        return; \
+    }
+
+#define PP_JNI_DETACH(env_name) \
+    do { \
+        if (env_name##_did_attach) (*jvm)->DetachCurrentThread(jvm); \
+    } while (0)
+
+#pragma clang assume_nonnull end
+
+#endif

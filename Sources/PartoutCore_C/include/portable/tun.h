@@ -1,0 +1,77 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Davide De Rosa
+ *
+ * SPDX-License-Identifier: GPL-3.0
+ */
+
+#pragma once
+#include "conditionals.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+#include "portable/common.h"
+#include "portable/socket.h"
+
+#pragma clang assume_nonnull begin
+
+/* Opaque tun device. */
+typedef struct __pp_tun_struct *pp_tun;
+
+#if PARTOUT_MACOS || PARTOUT_LINUX || PARTOUT_WINDOWS
+/* Request a new device. */
+pp_tun _Nullable pp_tun_open(const char *uuid);
+#endif
+
+#if PARTOUT_APPLE
+/* Look up Network Extension fd. */
+pp_tun _Nullable pp_tun_lookup(void);
+pp_fd pp_tun_network_extension_fd(void);
+#endif
+
+/* Platform-specific implementations. */
+int pp_tun_read(const pp_tun tun, uint8_t *dst, size_t dst_len);
+int pp_tun_write(const pp_tun tun, const uint8_t *src, size_t src_len);
+void pp_tun_close(const pp_tun tun);
+void pp_tun_free_and_close(pp_tun tun, bool and_close);
+
+static inline void pp_tun_free(pp_tun tun) {
+    pp_tun_free_and_close(tun, true);
+}
+
+/* Return the file descriptor. Check result with pp_fd_is_valid(). */
+pp_fd pp_tun_get_watch_fd(const pp_tun tun);
+
+/* Return the device name or NULL if none. */
+const char *_Nullable pp_tun_name(const pp_tun tun);
+
+/* Tunnel controller. */
+typedef struct {
+    void *_Nullable ctx;
+    void (*on_reachability)(void *_Nullable ctx, const pp_reachability *reachability);
+    void (*on_better_path)(void *_Nullable ctx);
+} pp_tun_ctrl_delegate;
+
+typedef struct {
+    void (*set_delegate)(void *_Nullable ref,
+                         const pp_tun_ctrl_delegate *_Nullable delegate);
+    pp_tun _Nullable (*_Nonnull set_tunnel)(void *_Nullable ref,
+                                            const char *uuid,
+                                            const char *_Nullable info_json);
+    bool (*configure_sockets)(void *_Nullable ref,
+                              const pp_reachability *_Nullable info,
+                              const pp_socket_fd *_Nonnull fds,
+                              size_t fds_len);
+    void (*report_snapshot)(void *_Nullable ref,
+                            const char *snapshot_json);
+    void (*set_environment_value)(void *_Nullable ref,
+                                  const char *key,
+                                  const char *_Nullable value);
+    void (*clear_tunnel)(void *_Nullable ref, bool kill_switch);
+    void (*cancel_tunnel)(void *_Nullable ref,
+                          const char *_Nullable error_message);
+} pp_tun_ctrl_fnt;
+
+/* Return the function table for the current platform. */
+pp_tun_ctrl_fnt pp_tun_ctrl_fnt_current(void);
+
+#pragma clang assume_nonnull end

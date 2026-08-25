@@ -1,0 +1,124 @@
+// SPDX-FileCopyrightText: 2026 Davide De Rosa
+//
+// SPDX-License-Identifier: GPL-3.0
+
+/// Implementation of ``TunnelObservableStrategy`` to fake VPN operation on simulators.
+public actor FakeTunnelStrategy: TunnelObservableStrategy, Sendable {
+    private nonisolated let activeProfileSubject: CurrentValueStream<TunnelSnapshot?>
+
+    private var status: TunnelStatus {
+        get {
+            activeProfileSubject.value?.status ?? .inactive
+        }
+        set {
+            guard let previous = activeProfileSubject.value else {
+                return
+            }
+            activeProfileSubject.send(.init(
+                id: previous.id,
+                isEnabled: previous.isEnabled,
+                status: newValue,
+                onDemand: previous.onDemand
+            ))
+        }
+    }
+
+    public nonisolated var activeProfiles: [Profile.ID: TunnelSnapshot] {
+        guard let current = activeProfileSubject.value else {
+            return [:]
+        }
+        return [current.id: current]
+    }
+
+    public nonisolated var activeProfile: TunnelSnapshot? {
+        activeProfileSubject.value
+    }
+
+    public nonisolated var didUpdateActiveProfiles: AsyncStream<[Profile.ID: TunnelSnapshot]> {
+        activeProfileSubject
+            .subscribe()
+            .map {
+                guard let current = $0 else {
+                    return [:]
+                }
+                return [current.id: current]
+            }
+    }
+
+    private let delay: Int
+
+    private let onMessage: @Sendable (Data) -> Data
+
+    public init(
+        delay: Int = 1000,
+        onMessage: @escaping @Sendable (Data) -> Data = { $0 }
+    ) {
+        self.delay = delay
+        self.onMessage = onMessage
+        activeProfileSubject = CurrentValueStream(nil)
+    }
+
+    public func prepare(purge: Bool) async throws {
+    }
+
+    public func install(_ profile: Profile, connect: Bool, options: Sendable?) async throws {
+        let isOnDemand = profile.activeModules
+            .contains {
+                $0 is OnDemandModule
+            }
+        if connect, status != .inactive {
+            await doDisconnect()
+        }
+        activeProfileSubject.send(TunnelSnapshot(
+            id: profile.id,
+            isEnabled: true,
+            status: .inactive,
+            onDemand: isOnDemand
+        ))
+        if !isOnDemand && connect {
+            await doConnect()
+        }
+    }
+
+    public func uninstall(profileId: Profile.ID) async throws {
+        if profileId == activeProfileSubject.value?.id {
+            status = .inactive
+            activeProfileSubject.send(nil)
+        }
+    }
+
+    public func disconnect(from profileId: Profile.ID) async throws {
+        await doDisconnect()
+        activeProfileSubject.send(TunnelSnapshot(
+            id: profileId,
+            isEnabled: false,
+            status: .inactive,
+            onDemand: false
+        ))
+    }
+
+    public func sendMessage(_ message: Data, to profileId: Profile.ID) async throws -> Data? {
+        onMessage(message)
+    }
+}
+
+private extension FakeTunnelStrategy {
+    func doConnect() async {
+        status = .activating
+        try? await Task.sleep(milliseconds: delay)
+        if status == .activating {
+            status = .active
+        }
+    }
+
+    func doDisconnect() async {
+        guard status != .inactive else {
+            return
+        }
+        status = .deactivating
+        try? await Task.sleep(milliseconds: delay)
+        if status == .deactivating {
+            status = .inactive
+        }
+    }
+}
