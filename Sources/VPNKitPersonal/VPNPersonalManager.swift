@@ -10,8 +10,8 @@ public protocol VPNPersonalDelegate: AnyObject {
     func vpnPersonalReasserting()
 }
 
-public final class VPNPersonalManager {
-    public static let shared = VPNPersonalManager()
+public final class VPNPersonalManager: @unchecked Sendable {
+    nonisolated(unsafe) public static let shared = VPNPersonalManager()
 
     public let vpnManager = NEVPNManager.shared()
     public weak var delegate: VPNPersonalDelegate?

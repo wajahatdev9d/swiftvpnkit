@@ -7,7 +7,7 @@ public enum VPNKitLogLevel: Sendable {
 
 public enum VPNKitLogger {
     /// Optional hook for host app logging (e.g. os_log, Firebase, custom file).
-    public static var handler: (@Sendable (VPNKitLogLevel, String) -> Void)?
+    nonisolated(unsafe) public static var handler: (@Sendable (VPNKitLogLevel, String) -> Void)?
 
     static func info(_ message: String) {
         handler?(.info, message)
