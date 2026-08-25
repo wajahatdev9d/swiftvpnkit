@@ -1,6 +1,8 @@
-# VPNKit
+# SwiftVPNKit
 
 Self-contained iOS Swift Package for VPN — **OpenVPN**, **WireGuard**, **IKEv2**, and **IPSec**. No external SPM dependencies; Partout runtime is vendored inside this repo.
+
+> **Package name:** `SwiftVPNKit` · **Import modules:** `VPNKit`, `VPNKitTunnel`, `VPNKitPersonal`
 
 ## Package size
 
@@ -44,7 +46,7 @@ The xcframework also includes macOS and tvOS slices for completeness. Only the i
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR_ORG/VPNKit.git", from: "1.0.0")
+    .package(url: "https://github.com/wajahatdev9d/swiftvpnkit.git", from: "1.0.0")
 ]
 ```
 

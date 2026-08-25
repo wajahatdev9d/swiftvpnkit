@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "VPNKit",
+    name: "SwiftVPNKit",
     platforms: [
         .iOS(.v16)
     ],
